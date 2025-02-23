@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pic to Puzz</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Prevents pinch-zoom and scrolling */
+        }
+
+        #intro-page {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #intro-page h1 {
+            font-size: clamp(1.5em, 5vw, 2.5em);
+            color: #333;
+        }
+
+        #intro-page p {
+            font-size: clamp(1em, 3vw, 1.2em);
+            color: #666;
+            margin: 10px 0;
+        }
+
+        #start-btn {
+            padding: 15px 30px;
+            font-size: clamp(1.2em, 4vw, 1.5em);
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        #game-page {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            min-height: 100vh;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #reference-container {
+            margin: 10px 0;
+        }
+
+        #reference {
+            max-width: clamp(150px, 40vw, 200px);
+            max-height: clamp(150px, 40vw, 200px);
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+
+        #puzzle-container {
+            position: relative;
+            width: clamp(300px, 80vw, 400px);
+            height: clamp(300px, 80vw, 400px);
+            border: 2px dashed #333;
+            background-color: #fff;
+            margin: 0 auto;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            cursor: move;
+            user-select: none;
+            touch-action: none; /* Prevents touch interference */
+        }
+
+        #upload-input {
+            margin: 15px 0;
+            padding: 10px;
+            font-size: clamp(0.9em, 2.5vw, 1em);
+            width: clamp(200px, 60vw, 300px);
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            font-size: clamp(0.7em, 2vw, 0.9em);
+            color: #666;
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="intro-page">
+        <h1>Welcome to Pic to Puzz</h1>
+        <p>Upload any picture, video, or GIF from your device, and watch it transform into a fun puzzle! Drag the pieces to match the reference image shown above the puzzle. Works perfectly on all devices.</p>
+        <button id="start-btn">Tap to Begin</button>
+        <p class="footer">Designed by Kofi Fosu | <a href="mailto:cosmoscoderr@gmail.com">cosmoscoderr@gmail.com</a></p>
+    </div>
+
+    <div id="game-page">
+        <div id="reference-container">
+            <img id="reference" alt="Reference Image">
+        </div>
+        <input type="file" id="upload-input" accept="image/*,video/*,.gif">
+        <div id="puzzle-container"></div>
+    </div>
+
+    <script>
+        const introPage = document.getElementById('intro-page');
+        const gamePage = document.getElementById('game-page');
+        const startBtn = document.getElementById('start-btn');
+        const uploadInput = document.getElementById('upload-input');
+        const puzzleContainer = document.getElementById('puzzle-container');
+        const reference = document.getElementById('reference');
+
+        startBtn.addEventListener('click', () => {
+            introPage.style.display = 'none';
+            gamePage.style.display = 'flex';
+        });
+
+        uploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                reference.src = url;
+                createPuzzle(url);
+            }
+        });
+
+        function createPuzzle(mediaUrl) {
+            puzzleContainer.innerHTML = '';
+            const containerSize = puzzleContainer.offsetWidth; // Dynamic size based on container
+            const pieceSize = containerSize / 4; // 4x4 grid
+            const rows = 4;
+            const cols = 4;
+
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const piece = document.createElement('div');
+                    piece.className = 'puzzle-piece';
+                    piece.style.width = `${pieceSize}px`;
+                    piece.style.height = `${pieceSize}px`;
+                    piece.style.backgroundImage = `url(${mediaUrl})`;
+                    piece.style.backgroundSize = `${cols * pieceSize}px ${rows * pieceSize}px`;
+                    piece.style.backgroundPosition = `-${col * pieceSize}px -${row * pieceSize}px`;
+                    piece.dataset.row = row;
+                    piece.dataset.col = col;
+
+                    // Random initial position within viewport
+                    const randX = Math.random() * (window.innerWidth - pieceSize - puzzleContainer.offsetLeft);
+                    const randY = Math.random() * (window.innerHeight - pieceSize - puzzleContainer.offsetTop - 100); // Offset for header
+                    piece.style.left = `${randX}px`;
+                    piece.style.top = `${randY}px`;
+
+                    makeDraggable(piece, pieceSize, rows, cols);
+                    puzzleContainer.appendChild(piece);
+                }
+            }
+        }
+
+        function makeDraggable(piece, pieceSize, rows, cols) {
+            let isDragging = false;
+            let startX, startY;
+
+            // Mouse events
+            piece.addEventListener('mousedown', startDragging);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+
+            // Touch events for mobile (iPhone compatibility)
+            piece.addEventListener('touchstart', startDragging, { passive: false });
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', stopDragging);
+
+            function startDragging(e) {
+                e.preventDefault();
+                isDragging = true;
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                startX = clientX - parseFloat(piece.style.left || 0);
+                startY = clientY - parseFloat(piece.style.top || 0);
+                piece.style.zIndex = 1000;
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+                const newX = clientX - startX;
+                const newY = clientY - startY;
+                piece.style.left = `${newX}px`;
+                piece.style.top = `${newY}px`;
+            }
+
+            function stopDragging() {
+                if (!isDragging) return;
+                isDragging = false;
+                piece.style.zIndex = 1;
+
+                const targetX = piece.dataset.col * pieceSize;
+                const targetY = piece.dataset.row * pieceSize;
+                const currentX = parseFloat(piece.style.left);
+                const currentY = parseFloat(piece.style.top);
+
+                if (Math.abs(currentX - targetX) < 20 && Math.abs(currentY - targetY) < 20) {
+                    piece.style.left = `${targetX}px`;
+                    piece.style.top = `${targetY}px`;
+                    piece.style.cursor = 'default';
+                    piece.removeEventListener('mousedown', startDragging);
+                    piece.removeEventListener('touchstart', startDragging);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
